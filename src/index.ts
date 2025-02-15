@@ -1,118 +1,71 @@
-import fs from 'fs';
-import { Config } from './config';
-import { ReadlineParser, SerialPort } from 'serialport';
-import { NodeWebcam } from 'node-webcam';
+import { SerialPort } from 'serialport';
+import { ReadlineParser } from '@serialport/parser-readline';
+import { DefaultConfig, GlobalConfig } from './models/config';
+import { takePhoto } from './utils/CameraUtils';
+import { ConfigManager } from './store/configManager';
+import { Button } from './models/button';
+import { pressButton } from './services/pressBtn';
 
-
-if (!fs.existsSync(Config.photosDir)) {
-    fs.mkdirSync(Config.photosDir);
+let mainConfig = ConfigManager.deserialize<GlobalConfig>("GlobalConfig");
+if (mainConfig === undefined) {
+  mainConfig = DefaultConfig;
 }
 
-const port = new SerialPort({ path: Config.serialPort, baudRate: Config.baudRate });
-const parser = port.pipe(new ReadlineParser({ delimiter: "\n" }));
+const port = new SerialPort({ path: mainConfig.serialPort, baudRate: mainConfig.baudRate }).setEncoding('utf-8');
+const parser = port.pipe(new ReadlineParser({ delimiter: '\n' }));
+// const parser = port.pipe(new ReadlineParser()).setEncoding('utf-8');
 
-// Переменная для задержки между нажатиями
-let cooldown: Date = new Date();
+let canRing: boolean = true;
 
-// Инициализация камеры
-const Webcam = NodeWebcam.create({
-    width: 1280,
-    height: 720,
-    quality: 100,
-    delay: 0,
-    saveShots: true,
-    output: "png",
-    device: Config.cameraDevice,
-    callbackReturn: "location",
-});
+// const parser = port.pipe(new ReadlineParser());
 
-// Отправляем "startup" на Arduino после инициализации порта
+// Read the port data
 port.on("open", () => {
-    console.log("Serial port opened. Sending 'startup' to Arduino...");
-    port.write("startup\n", (err) => {
+  console.log('serial port open');
+  const startup = Buffer.from('startup', 'utf8');
+  setTimeout(() => {
+    port.write(startup, (err) => {
       if (err) {
-        console.error("Error sending 'startup' to Arduino:", err.message);
-      } else {
-        console.log("'startup' sent to Arduino.");
+        console.error('Error writing to serial port:', err);
       }
     });
+  }, 1000);
+});
+parser.on('data', async data =>{
+  data = data.replace(/(\r\n|\n|\r)/gm, "");
+  if (canRing) {
+    canRing = false;
+    port.write("send");
+    console.log('got word from arduino:', data);
+
+    await pressButton(sendMessage, data);
+
+    setTimeout(() => canRing = true, 3000);
+  }
 });
 
-// Обработка данных с Arduino
-parser.on("data", async (data: string) => {
-    const buttonLabel = data.trim();
-  
-    // Проверяем, что кнопка нажата и задержка истекла
-    if (new Date() > cooldown) {
-      cooldown = new Date(Date.now() + 6000); // 6 секунд задержки
-      console.log(`Button pressed: ${buttonLabel}`);
-  
-      // Создаем имя файла на основе текущего времени
-      const filePath = `${Config.photosDir}/${new Date().toISOString().replace(/[:.]/g, "-")}.png`;
-  
-      try {
-        // Делаем фотографию
-        await takePicture(filePath);
-        console.log(`Photo saved: ${filePath}`);
-  
-        // Отправляем фотографию на сервер
-        await sendPhoto(filePath);
-        console.log(`Photo sent: ${filePath}`);
-  
-        // Удаляем фотографию после успешной отправки
-        fs.unlinkSync(filePath);
-      } catch (err: Error | any) {
-        console.error(`Error: ${err.message}`);
-      }
-    } else {
-      console.log("Button press ignored: cooldown active");
-    }
-});
-
-// Функция для захвата фотографии
-function takePicture(filePath: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      Webcam.capture(filePath, (err: Error | null) => {
-        if (err) {
-          reject(new Error(`Failed to take picture: ${err.message}`));
-        } else {
-          resolve();
-        }
-      });
-    });
+const sendMessage = (mess: string) => {
+  setTimeout(() => {
+    port.write(mess);
+  }, 180);
+  // port.write(mess);
 }
 
-// Функция для отправки фотографии на сервер
-async function sendPhoto(filePath: string): Promise<void> {
-    try {
-      const photoData = fs.readFileSync(filePath);
-      const response = await fetch(Config.hostAddress, {
-        method: "POST",
-        body: photoData,
-        headers: { "Content-Type": "image/png" },
-      });
-  
-      if (!response.ok) {
-        throw new Error(`Server responded with status ${response.status}`);
-      }
-    } catch (err: Error | any) {
-      throw new Error(`Failed to send photo: ${err.message}`);
-    }
-}
+// takePhoto("shot_me");
+// console.log("shoted");
+// const someData = ConfigManager.deserialize("ok");
+// console.log(someData);
+// ConfigManager.serialize("GlobalConfig", DefaultConfig);
 
-// Проверка неотправленных фотографий каждые 15 минут
-setInterval(async () => {
-    const files = fs.readdirSync(Config.photosDir);
-    for (const file of files) {
-      const filePath = `${Config.photosDir}/${file}`;
-      try {
-        await sendPhoto(filePath);
-        console.log(`Photo sent from pool: ${filePath}`);
-        fs.unlinkSync(filePath); // Удаляем фото после успешной отправки
-      } catch (err: Error | any) {
-        console.error(`Failed to send photo from pool: ${err.message}`);
-      }
-    }
-}, 15 * 60 * 1000); // 15 минут
-  
-  console.log("Doorbell system started!");
+// const buttons: Button[] = [
+//   {
+//     roofId: "562FE",
+//     buttonLabel: "1"
+//   },
+//   {
+//     roofId: "500FG",
+//     buttonLabel: "2"
+//   },
+// ]
+
+// ConfigManager.serialize("Buttons", buttons);

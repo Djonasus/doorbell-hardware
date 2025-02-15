@@ -1,0 +1,5 @@
+{
+    "hostAddress": "https://killneuro.space",
+    "serialPort": "/dev/cu.usbserial-22130",
+    "baudRate": 9600
+}
