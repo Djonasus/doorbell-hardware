@@ -3,6 +3,7 @@ import * as fs from "fs";
 
 export async function takePhoto(title: string): Promise<string> {
     const opts: WebcamOptions = {
+        device: "/dev/video1",
         // width: 1280,
         // height: 720,
         // quality: 100,
