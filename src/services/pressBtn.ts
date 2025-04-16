@@ -14,7 +14,7 @@ function findButton(configs: Button[], btn: string): any {
 
 export async function pressButton(sendCtx: any, btn: string) {
     const curTime = new Date().getTime().toString();
-    const configs = ConfigManager.deserialize<Button[]>("buttons");
+    const configs = ConfigManager.deserialize<Button[]>("Buttons");
 
     const btnConf = findButton(configs as Button[], btn)
 
