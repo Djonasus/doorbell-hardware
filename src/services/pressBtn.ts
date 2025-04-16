@@ -25,6 +25,5 @@ export async function pressButton(sendCtx: any, btn: string) {
 
     const photoDir = await takePhoto(curTime);
     ApiService.sendData(btnConf, photoDir, sendCtx);
-    // sendCtx("startup");
     
 }

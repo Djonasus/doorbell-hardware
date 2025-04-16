@@ -20,20 +20,28 @@ export namespace ApiService {
             timeout: 4000,
         });
 
-        const image = fs.readFileSync(imagePath);
-        const data: ApiDTO = {
-            image: image,
-            time: new Date().toISOString(),
-            floorId: btnData.roofId,
-        };
-        httpClient.post(`${hostAddress}/api/new_call`, data)
-            .then(response => {
-                console.log('Data sent successfully:', response.data);
-                fs.rmSync(imagePath);
-            })
-            .catch(error => {
-                sendCtx("error");
-                console.error('Error sending data:', error.response?.status ?? "Server is not responding");
-            });
+        const form = new FormData();
+        form.append('image', new Blob([fs.readFileSync(imagePath)]));
+        form.append('time', new Date().toISOString());
+        form.append('floorId', btnData.roofId);
+        console.log(form);
+        // const image = fs.readFileSync(imagePath);
+        // const data: ApiDTO = {
+        //     image: image,
+        //     time: new Date().toISOString(),
+        //     floorId: btnData.roofId,
+        // };
+        
+        httpClient.post(`${hostAddress}/images`, form, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            }
+        }).then(response => {
+            console.log('Data sent successfully:', response.data);
+            fs.rmSync(imagePath);
+        }).catch(error => {
+            sendCtx("error");
+            console.error('Error sending data:', error.response?.status ?? "Server is not responding");
+        });
     }
 }
