@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node dist/index.js",
-    "buid": "tsc",
+    "build": "tsc",
     "pipeline": "tsc && node dist/index.js"
   },
   "keywords": [],
