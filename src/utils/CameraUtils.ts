@@ -12,7 +12,7 @@ export async function takePhoto(title: string): Promise<string> {
         // output: "jpeg",
         // device: false,
         callbackReturn: "buffer", // Возвращать изображение в виде буфера
-        verbose: false
+        // verbose: false
     };
     const Webcam = NodeWebcam.create( opts );
 
